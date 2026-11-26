@@ -23,6 +23,9 @@ examples:
   explain-error -- npm run build
   explain-error "ModuleNotFoundError: No module named 'cv2'"
   explain-error --ai -- cargo build
+
+shell mode (type `huh` after a command fails):
+  explain-error init          show setup steps for your shell
 """
 
 
@@ -83,12 +86,41 @@ def _list_rules(style: Style) -> None:
     print(style.dim(f"\n{len(rules)} rules"))
 
 
+def _init(argv: list[str]) -> int:
+    from .shell import DEFAULT_NAME, SHELLS, script_for, setup_text
+
+    p = argparse.ArgumentParser(
+        prog="explain-error init",
+        description="Print shell code that explains failed commands when you type `huh`.",
+        epilog=setup_text(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("shell", nargs="?", choices=[*SHELLS, "pwsh"], help="your shell")
+    p.add_argument("--name", default=DEFAULT_NAME, help="command name to define (default: huh)")
+    args = p.parse_args(argv)
+    if not args.shell:
+        print(setup_text(args.name))
+        return 0
+    try:
+        script = script_for(args.shell, args.name)
+    except ValueError as e:
+        p.error(str(e))
+    # Write LF line endings even on Windows, so Git Bash can eval it.
+    sys.stdout.flush()
+    sys.stdout.buffer.write(script.encode("utf-8"))
+    sys.stdout.buffer.flush()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")
 
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["init"]:
+        return _init(argv[1:])
+
     command: list[str] | None = None
     if "--" in argv:
         i = argv.index("--")
@@ -110,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.error:
         text = " ".join(args.error)
     elif not sys.stdin.isatty():
+        if hasattr(sys.stdin, "reconfigure"):
+            sys.stdin.reconfigure(encoding="utf-8", errors="replace")
         text = sys.stdin.read()
     else:
         _parser().print_help()

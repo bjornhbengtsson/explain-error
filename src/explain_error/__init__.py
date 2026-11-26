@@ -1,6 +1,6 @@
 """explain-error: plain-English explanations and fixes for error messages."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .matcher import Match, Rule, explain, load_rules  # noqa: E402
 

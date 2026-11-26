@@ -1,5 +1,12 @@
 <h1 align="center">explain-error</h1>
 
+<p align="center">
+<a href="https://pypi.org/project/xerr/"><img src="https://img.shields.io/pypi/v/xerr?label=pypi%20xerr" alt="PyPI"></a>
+<a href="https://github.com/bjornhbengtsson/explain-error/actions/workflows/test.yml"><img src="https://github.com/bjornhbengtsson/explain-error/actions/workflows/test.yml/badge.svg" alt="tests"></a>
+<a href="https://pypi.org/project/xerr/"><img src="https://img.shields.io/pypi/pyversions/xerr" alt="Python versions"></a>
+<a href="LICENSE"><img src="https://img.shields.io/github/license/bjornhbengtsson/explain-error" alt="MIT license"></a>
+</p>
+
 <p align="center"><b>Your error, in plain English. With the fix.</b></p>
 
 <p align="center">
@@ -14,33 +21,9 @@ Offline. Zero dependencies. Optional Claude mode for everything else.
 
 ---
 
-## Before
-
-```text
-Traceback (most recent call last):
-  File "/home/me/vision/main.py", line 1, in <module>
-    import cv2
-ModuleNotFoundError: No module named 'cv2'
-```
-
-*So you run `pip install cv2`. That fails too.*
-
-## After
-
-```text
-$ explain-error -- python main.py
-
-error: Python can't find the module `cv2`
-  where:  /home/me/vision/main.py:1
-
-  Python looked for `cv2` and couldn't find it. Usually the package isn't installed,
-  or it's installed in a different Python than the one running your code.
-
-  Try:
-    - Install it into the Python you're running: `python -m pip install opencv-python`
-    - Check which Python is running: `python -c "import sys; print(sys.executable)"`
-    - If you use a virtual environment, activate it first
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/bjornhbengtsson/explain-error/main/docs/demo.gif" alt="A Python script fails with ModuleNotFoundError for cv2. Typing huh explains that the package is called opencv-python and how to install it." width="760">
+</p>
 
 It knows `cv2` is really `opencv-python`, `sklearn` is `scikit-learn`, `PIL` is `pillow`, and so on.
 
@@ -70,6 +53,29 @@ xerr -- cargo build                         # short alias
 | `--all` | Shows every rule that matched, not just the best one. |
 | `--json` | Prints machine-readable output for editors, CI and agents. |
 | `--list` | Lists every built-in rule. |
+
+## Shell mode: type `huh` after anything fails
+
+Add one line to your shell's startup file. After that, any command that fails gets a dim hint, and typing `huh` explains it:
+
+```bash
+echo 'eval "$(xerr init bash)"' >> ~/.bashrc                        # bash
+echo 'eval "$(xerr init zsh)"' >> ~/.zshrc                          # zsh
+echo 'xerr init fish | source' >> ~/.config/fish/config.fish        # fish
+```
+
+```powershell
+Add-Content $PROFILE 'Invoke-Expression (& xerr init powershell | Out-String)'   # PowerShell
+```
+
+Shells don't keep a command's output, so `huh` asks before re-running the failed command to capture its error. Missing commands are explained without re-running anything, and so are PowerShell's own errors. Nothing runs at the prompt except a few lines of shell code; Python starts only when you type `huh`.
+
+| Setting | Effect |
+|---|---|
+| `xerr init bash --name wtf` | Use another name instead of `huh` |
+| `XERR_NO_HINT=1` | Hide the hint after failures |
+| `XERR_NO_CONFIRM=1` | Re-run without asking |
+| `XERR_AI=1` | Also ask Claude (see `--ai` below) |
 
 ## What it covers
 

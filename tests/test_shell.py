@@ -1,0 +1,75 @@
+import io
+import shutil
+import subprocess
+import sys
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from explain_error.cli import main  # noqa: E402
+from explain_error.shell import NAME_PLACEHOLDER, SHELLS, script_for  # noqa: E402
+
+
+class _BytesStdout(io.StringIO):
+    """StringIO with a .buffer, like the real sys.stdout."""
+
+    def __init__(self):
+        super().__init__()
+        self.buffer = io.BytesIO()
+
+
+class ShellScriptTests(unittest.TestCase):
+    def test_every_shell_has_a_script_with_the_name_filled_in(self):
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                script = script_for(shell, "wtf")
+                self.assertNotIn(NAME_PLACEHOLDER, script)
+                self.assertIn("wtf", script)
+                self.assertNotIn("\r", script)
+                self.assertTrue(script.isascii(), "keep hooks ASCII so every console decodes them")
+
+    def test_rejects_bad_names_and_shells(self):
+        with self.assertRaises(ValueError):
+            script_for("bash", "rm -rf")
+        with self.assertRaises(ValueError):
+            script_for("tcsh")
+
+    def test_pwsh_alias(self):
+        self.assertEqual(script_for("pwsh"), script_for("powershell"))
+
+    def test_init_prints_script_bytes(self):
+        out = _BytesStdout()
+        with redirect_stdout(out):
+            code = main(["init", "bash"])
+        self.assertEqual(code, 0)
+        text = out.buffer.getvalue().decode()
+        self.assertIn("__xerr_prompt_hook", text)
+        self.assertNotIn("\r\n", text)
+
+    def test_init_without_shell_prints_setup(self):
+        out = _BytesStdout()
+        with redirect_stdout(out):
+            code = main(["init"])
+        self.assertEqual(code, 0)
+        self.assertIn("~/.zshrc", out.getvalue())
+
+    @unittest.skipUnless(shutil.which("bash"), "bash not installed")
+    def test_bash_script_parses(self):
+        result = subprocess.run(["bash", "-n"], input=script_for("bash"), text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipUnless(shutil.which("zsh"), "zsh not installed")
+    def test_zsh_script_parses(self):
+        result = subprocess.run(["zsh", "-n"], input=script_for("zsh"), text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipUnless(shutil.which("fish"), "fish not installed")
+    def test_fish_script_parses(self):
+        result = subprocess.run(["fish", "--no-execute"], input=script_for("fish"), text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
