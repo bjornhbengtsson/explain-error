@@ -77,7 +77,7 @@ body:
     attributes:
       label: explain-error version
       description: Run `xerr --version`.
-      placeholder: explain-error 0.2.0
+      placeholder: explain-error 0.2.1
     validations:
       required: false
 
