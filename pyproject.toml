@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "explain-error"
+name = "xerr"
 version = "0.1.0"
 description = "Explain error messages in plain English, with fixes. Offline, zero dependencies, 100+ rules."
 readme = "README.md"

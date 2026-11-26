@@ -67,7 +67,8 @@ def explain_with_ai(
     except ImportError as e:
         raise AIError(
             "AI mode needs the Anthropic SDK. Install it with:\n"
-            '    pip install anthropic'
+            '    pipx install --force "xerr[ai]"   (if you installed with pipx)\n'
+            "    pip install anthropic             (otherwise)"
         ) from e
 
     model = model or os.environ.get("EXPLAIN_ERROR_MODEL") or DEFAULT_MODEL
