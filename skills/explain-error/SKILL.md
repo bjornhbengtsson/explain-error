@@ -23,7 +23,7 @@ Or pass error text you already have:
 explain-error --json "<the error line>"
 ```
 
-If `explain-error` isn't installed, run it without installing: `uvx --from git+https://github.com/bjornhbengtsson/explain-error explain-error --json ...`. If that fails too, skip to step 2 and reason from the log alone.
+If `explain-error` isn't installed, run it without installing: `uvx xerr --json ...`. If that fails too, skip to step 2 and reason from the log alone.
 
 The JSON has `matches[0]` with `title`, `explanation`, `fixes`, `location` (file and line, when found) and `id`. An empty `matches` list means no rule covers this error.
 

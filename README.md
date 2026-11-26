@@ -47,13 +47,12 @@ It knows `cv2` is really `opencv-python`, `sklearn` is `scikit-learn`, `PIL` is 
 ## Install
 
 ```bash
-pipx install git+https://github.com/bjornhbengtsson/explain-error
-# or: uv tool install git+https://github.com/bjornhbengtsson/explain-error
+pipx install xerr      # or: uv tool install xerr
 ```
 
-Or try it without installing: `uvx --from git+https://github.com/bjornhbengtsson/explain-error explain-error "TypeError: data.map is not a function"`
+Or try it without installing: `uvx xerr "TypeError: data.map is not a function"`
 
-Needs Python 3.11+. (A PyPI release is coming soon.)
+Needs Python 3.11+. The package is called `xerr` on PyPI; it installs both the `explain-error` and `xerr` commands.
 
 ## Use it
 
@@ -102,7 +101,7 @@ npx skills add bjornhbengtsson/explain-error
 Rules cover the common errors. For everything else, `--ai` sends the log to Claude and gets back a short diagnosis specific to your error. Any rule that matched is passed along as a hint.
 
 ```bash
-pipx install "explain-error[ai] @ git+https://github.com/bjornhbengtsson/explain-error"
+pipx install "xerr[ai]"
 export ANTHROPIC_API_KEY=...        # or: ant auth login
 explain-error --ai -- pytest
 ```
