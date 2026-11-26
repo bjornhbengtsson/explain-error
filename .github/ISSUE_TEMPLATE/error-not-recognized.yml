@@ -1,0 +1,95 @@
+name: Error not recognized
+description: explain-error didn't explain an error (or explained it wrong). Paste it here and it can become a new rule.
+title: "[new rule] "
+labels: ["new rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Every error pasted here can become a rule that helps the next person who hits it.
+
+        **Before you paste, remove anything private:** API keys, tokens, passwords, internal hostnames, and your name in file paths if you'd rather not share it.
+
+  - type: textarea
+    id: error
+    attributes:
+      label: The error
+      description: Paste the full error output exactly as your tool printed it, including the stack trace or traceback.
+      render: text
+      placeholder: |
+        Traceback (most recent call last):
+          File "app.py", line 3, in <module>
+            import cv2
+        ModuleNotFoundError: No module named 'cv2'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ecosystem
+    attributes:
+      label: Language or tool
+      options:
+        - Python
+        - JavaScript / Node.js
+        - TypeScript
+        - React / Next.js
+        - git / GitHub
+        - Rust
+        - Go
+        - Java / Kotlin
+        - C / C++
+        - Shell (bash, zsh, PowerShell, cmd)
+        - Docker
+        - Other (say which below)
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: The command you ran
+      placeholder: python app.py
+    validations:
+      required: false
+
+  - type: dropdown
+    id: what-happened
+    attributes:
+      label: What did explain-error do?
+      options:
+        - It said no rule matches
+        - It matched the wrong rule
+        - It matched the right rule, but the fix didn't help
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: What fixed it? (optional, but very helpful)
+      description: If you found the fix, describe it. That's most of the work of writing the rule.
+      placeholder: The import name is cv2, but the package is called opencv-python, so `pip install opencv-python` fixed it.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: explain-error version
+      description: Run `xerr --version`.
+      placeholder: explain-error 0.2.0
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed secrets and anything else private from the error above.
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Want to write the rule yourself? It's about 15 lines of TOML. See [CONTRIBUTING.md](https://github.com/bjornhbengtsson/explain-error/blob/main/CONTRIBUTING.md).

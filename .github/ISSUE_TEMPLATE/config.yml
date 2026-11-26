@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Write a rule yourself
+    url: https://github.com/bjornhbengtsson/explain-error/blob/main/CONTRIBUTING.md
+    about: Rules are about 15 lines of TOML, with a test built in. This guide shows the format.

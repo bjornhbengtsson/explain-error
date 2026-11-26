@@ -130,7 +130,7 @@ fixes = ["Check for a typo", "If `{name}` comes from a library, import it at the
 examples = ["NameError: name 'pd' is not defined"]
 ```
 
-Got an error that explain-error didn't recognize? [Open an issue](https://github.com/bjornhbengtsson/explain-error/issues/new) and paste it in, or read [CONTRIBUTING.md](CONTRIBUTING.md) and send a rule.
+**Got an error explain-error didn't recognize?** [Paste it in an issue](https://github.com/bjornhbengtsson/explain-error/issues/new?template=error-not-recognized.yml) and it can become a rule. Or read [CONTRIBUTING.md](CONTRIBUTING.md) and send the rule yourself.
 
 ## License
 

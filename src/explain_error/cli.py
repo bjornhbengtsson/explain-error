@@ -17,6 +17,10 @@ from . import __version__
 from .matcher import explain, find_location, load_rules
 from .render import Style, render, use_color
 
+NEW_RULE_ISSUE_URL = (
+    "https://github.com/bjornhbengtsson/explain-error/issues/new?template=error-not-recognized.yml"
+)
+
 EXAMPLES = """\
 examples:
   python app.py 2>&1 | explain-error
@@ -190,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         elif not args.ai:
             print(style.yellow("No built-in rule matches this error yet."))
             print("  - Try `explain-error --ai` to ask Claude about it.")
-            print("  - Or add a rule: https://github.com/bjornhbengtsson/explain-error/blob/main/CONTRIBUTING.md")
+            print(f"  - Or paste it here so it becomes a rule: {NEW_RULE_ISSUE_URL}")
         if ai_text:
             print()
             print(style.bold("Claude says:"))
