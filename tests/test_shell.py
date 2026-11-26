@@ -55,20 +55,31 @@ class ShellScriptTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("~/.zshrc", out.getvalue())
 
-    @unittest.skipUnless(shutil.which("bash"), "bash not installed")
+    def _check_syntax(self, shell: str, *args: str) -> None:
+        exe = _real_shell(shell)
+        if not exe:
+            self.skipTest(f"{shell} not installed")
+        # Send bytes, so Windows can't turn the script's LF line endings into CRLF.
+        result = subprocess.run([exe, *args], input=script_for(shell).encode(), capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+
     def test_bash_script_parses(self):
-        result = subprocess.run(["bash", "-n"], input=script_for("bash"), text=True, capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self._check_syntax("bash", "-n")
 
-    @unittest.skipUnless(shutil.which("zsh"), "zsh not installed")
     def test_zsh_script_parses(self):
-        result = subprocess.run(["zsh", "-n"], input=script_for("zsh"), text=True, capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self._check_syntax("zsh", "-n")
 
-    @unittest.skipUnless(shutil.which("fish"), "fish not installed")
     def test_fish_script_parses(self):
-        result = subprocess.run(["fish", "--no-execute"], input=script_for("fish"), text=True, capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self._check_syntax("fish", "--no-execute")
+
+
+def _real_shell(name: str) -> str | None:
+    path = shutil.which(name)
+    # On Windows, System32\bash.exe is the WSL launcher, which fails when no
+    # Linux distribution is installed. Only use a real bash (e.g. Git Bash).
+    if path and "system32" in path.lower():
+        return None
+    return path
 
 
 if __name__ == "__main__":
