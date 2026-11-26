@@ -1,6 +1,6 @@
 """Optional: ask Claude to explain an error that no rule (or not enough) covers.
 
-Needs `pip install "explain-error[ai]"` and Anthropic credentials
+Needs `pip install anthropic` and Anthropic credentials
 (ANTHROPIC_API_KEY, or a profile from `ant auth login`).
 """
 
@@ -67,7 +67,7 @@ def explain_with_ai(
     except ImportError as e:
         raise AIError(
             "AI mode needs the Anthropic SDK. Install it with:\n"
-            '    pip install "explain-error[ai]"'
+            '    pip install anthropic'
         ) from e
 
     model = model or os.environ.get("EXPLAIN_ERROR_MODEL") or DEFAULT_MODEL

@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         elif not args.ai:
             print(style.yellow("No built-in rule matches this error yet."))
             print("  - Try `explain-error --ai` to ask Claude about it.")
-            print("  - Or add a rule: https://github.com/OWNER/explain-error/blob/main/CONTRIBUTING.md")
+            print("  - Or add a rule: https://github.com/bjornhbengtsson/explain-error/blob/main/CONTRIBUTING.md")
         if ai_text:
             print()
             print(style.bold("Claude says:"))

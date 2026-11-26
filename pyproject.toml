@@ -29,8 +29,8 @@ explain-error = "explain_error.cli:main"
 xerr = "explain_error.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/OWNER/explain-error"
-Issues = "https://github.com/OWNER/explain-error/issues"
+Homepage = "https://github.com/bjornhbengtsson/explain-error"
+Issues = "https://github.com/bjornhbengtsson/explain-error/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/explain_error"]

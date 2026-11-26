@@ -47,10 +47,13 @@ It knows `cv2` is really `opencv-python`, `sklearn` is `scikit-learn`, `PIL` is 
 ## Install
 
 ```bash
-pipx install explain-error      # or: uv tool install explain-error
+pipx install git+https://github.com/bjornhbengtsson/explain-error
+# or: uv tool install git+https://github.com/bjornhbengtsson/explain-error
 ```
 
-Or try it without installing: `uvx explain-error "TypeError: data.map is not a function"`
+Or try it without installing: `uvx --from git+https://github.com/bjornhbengtsson/explain-error explain-error "TypeError: data.map is not a function"`
+
+Needs Python 3.11+. (A PyPI release is coming soon.)
 
 ## Use it
 
@@ -91,7 +94,7 @@ It also finds **where** the error happened. It reads Python tracebacks, Node and
 explain-error ships as an [agent skill](skills/explain-error/SKILL.md). It lets Claude Code, Codex, Cursor and other agents use the same curated rules, so they check their diagnosis against them instead of guessing, and explain failures to you in three lines instead of thirty.
 
 ```bash
-npx skills add OWNER/explain-error
+npx skills add bjornhbengtsson/explain-error
 ```
 
 ## `--ai` mode
@@ -99,7 +102,7 @@ npx skills add OWNER/explain-error
 Rules cover the common errors. For everything else, `--ai` sends the log to Claude and gets back a short diagnosis specific to your error. Any rule that matched is passed along as a hint.
 
 ```bash
-pipx install "explain-error[ai]"
+pipx install "explain-error[ai] @ git+https://github.com/bjornhbengtsson/explain-error"
 export ANTHROPIC_API_KEY=...        # or: ant auth login
 explain-error --ai -- pytest
 ```
@@ -122,7 +125,7 @@ fixes = ["Check for a typo", "If `{name}` comes from a library, import it at the
 examples = ["NameError: name 'pd' is not defined"]
 ```
 
-Got an error that explain-error didn't recognize? [Open an issue](https://github.com/OWNER/explain-error/issues/new) and paste it in, or read [CONTRIBUTING.md](CONTRIBUTING.md) and send a rule.
+Got an error that explain-error didn't recognize? [Open an issue](https://github.com/bjornhbengtsson/explain-error/issues/new) and paste it in, or read [CONTRIBUTING.md](CONTRIBUTING.md) and send a rule.
 
 ## License
 
