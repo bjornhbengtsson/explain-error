@@ -1,0 +1,195 @@
+# git and GitHub rules.
+
+[[rule]]
+id = "git-push-rejected"
+language = "git"
+priority = 60
+pattern = '''\[rejected\][^\n]*\((?:fetch first|non-fast-forward)\)'''
+title = "The remote has commits you don't have yet"
+explain = '''
+Someone (or you, from another computer or the GitHub website) pushed commits
+that aren't in your local branch, so git won't overwrite them.
+'''
+fixes = [
+  "Get their commits, then push: `git pull --rebase` and then `git push`",
+  "If there are conflicts, fix the files, `git add` them, run `git rebase --continue`, then push",
+  "Only use `git push --force-with-lease` if you mean to throw away the remote commits",
+]
+examples = ['''! [rejected]        main -> main (fetch first)''', ''' ! [rejected]        feature -> feature (non-fast-forward)''']
+
+[[rule]]
+id = "git-not-a-repo"
+language = "git"
+pattern = '''fatal: not a git repository'''
+title = "This folder isn't a git repository"
+explain = '''
+git commands only work inside a repository (a folder with a `.git` folder, or
+below one). You're probably in the wrong folder.
+'''
+fixes = [
+  "`cd` into your project folder",
+  "To start tracking this folder: `git init`",
+  "To download an existing repo: `git clone <url>`",
+]
+examples = ['''fatal: not a git repository (or any of the parent directories): .git''']
+
+[[rule]]
+id = "git-merge-conflict"
+language = "git"
+priority = 55
+pattern = '''CONFLICT \([\w/ ]+\): Merge conflict in (?P<file>\S+)'''
+title = "Merge conflict in `{file}`"
+explain = '''
+Both branches changed the same lines of `{file}`, and git needs you to choose.
+The file now contains markers: your version between `<<<<<<<` and `=======`, the
+other between `=======` and `>>>>>>>`.
+'''
+fixes = [
+  "Open `{file}`, keep the right code, and delete all three marker lines",
+  "Then mark it fixed: `git add {file}`, and finish with `git commit` (or `git rebase --continue` during a rebase)",
+  "To back out entirely: `git merge --abort` (or `git rebase --abort`)",
+]
+examples = ['''CONFLICT (content): Merge conflict in src/app.py''']
+
+[[rule]]
+id = "git-local-changes-overwritten"
+language = "git"
+pattern = '''Your local changes to the following files would be overwritten'''
+title = "git won't overwrite your uncommitted changes"
+explain = '''
+You have edits that aren't committed, and the pull/checkout/merge would replace
+those files.
+'''
+fixes = [
+  "Commit them first: `git add -A` then `git commit -m \"wip\"`",
+  "Or set them aside, run the command, and bring them back: `git stash`, then the command, then `git stash pop`",
+  "Or throw the changes away (can't be undone): `git restore <file>`",
+]
+examples = ['''error: Your local changes to the following files would be overwritten by merge:''']
+
+[[rule]]
+id = "git-password-auth-removed"
+language = "git"
+priority = 60
+pattern = '''(?:Support for password authentication was removed|Invalid username or (?:password|token))'''
+title = "GitHub no longer accepts your account password for git"
+explain = '''
+Since 2021 GitHub requires a personal access token, SSH key or credential helper
+instead of your password when pushing over HTTPS.
+'''
+fixes = [
+  "Easiest: install the GitHub CLI and run `gh auth login`, which sets up git for you",
+  "Or create a personal access token on GitHub (Settings > Developer settings) and paste it when git asks for a password",
+  "Or switch to SSH: add an SSH key to GitHub and change the remote with `git remote set-url origin git@github.com:<user>/<repo>.git`",
+]
+examples = ['''remote: Support for password authentication was removed on August 13, 2021.''']
+
+[[rule]]
+id = "git-publickey-denied"
+language = "git"
+priority = 60
+pattern = '''Permission denied \(publickey\)'''
+title = "The server didn't accept your SSH key"
+explain = '''
+You're connecting over SSH, and either you have no SSH key, it isn't added to
+your GitHub/GitLab account, or the SSH agent isn't offering it.
+'''
+fixes = [
+  "Test the connection: `ssh -T git@github.com`",
+  "Create a key if you have none: `ssh-keygen -t ed25519 -C \"you@example.com\"`, then add the `.pub` file's contents to your account's SSH keys",
+  "Or use HTTPS instead: `git remote set-url origin https://github.com/<user>/<repo>.git`",
+]
+examples = ['''git@github.com: Permission denied (publickey).''']
+
+[[rule]]
+id = "git-no-upstream"
+language = "git"
+pattern = '''The current branch (?P<branch>\S+) has no upstream branch'''
+title = "The branch `{branch}` isn't linked to a remote branch yet"
+explain = '''
+This is a new local branch, so git doesn't know where to push it.
+'''
+fixes = [
+  "Push it and link it in one go: `git push -u origin {branch}`",
+  "To do this automatically for new branches: `git config --global push.autoSetupRemote true`",
+]
+examples = ['''fatal: The current branch feature/login has no upstream branch.''']
+
+[[rule]]
+id = "git-unrelated-histories"
+language = "git"
+pattern = '''refusing to merge unrelated histories'''
+title = "The two branches have no commits in common"
+explain = '''
+Usually you created a repo on GitHub with a README or license, and separately ran
+`git init` locally, so the histories started separately.
+'''
+fixes = [
+  "If that's what happened, merge them once: `git pull origin main --allow-unrelated-histories`",
+  "Then fix any conflicts and commit",
+]
+examples = ['''fatal: refusing to merge unrelated histories''']
+
+[[rule]]
+id = "git-src-refspec"
+language = "git"
+pattern = '''error: src refspec (?P<branch>\S+) does not match any'''
+title = "There's no local branch called `{branch}` to push"
+explain = '''
+Either you haven't made a commit yet (a new repo has no branches until the first
+commit), or the branch has a different name, often `master` instead of `main`.
+'''
+fixes = [
+  "Check your branches: `git branch`",
+  "Make a first commit if there are none: `git add -A` then `git commit -m \"first commit\"`",
+  "Rename the branch to match: `git branch -M {branch}`",
+]
+examples = ['''error: src refspec main does not match any''']
+
+[[rule]]
+id = "git-dubious-ownership"
+language = "git"
+pattern = '''detected dubious ownership in repository at '(?P<path>[^']+)''''
+title = "git doesn't trust the folder `{path}`"
+explain = '''
+The repository is owned by a different user account than yours (common with
+external drives, WSL, Docker volumes, or folders copied from another computer),
+and git refuses to work there as a safety measure.
+'''
+fixes = [
+  "If you trust it, mark it safe: `git config --global --add safe.directory \"{path}\"`",
+]
+examples = ['''fatal: detected dubious ownership in repository at 'D:/projects/app'''']
+
+[[rule]]
+id = "git-detached-head"
+language = "git"
+priority = 40
+pattern = '''(?:You are in 'detached HEAD' state|HEAD detached at)'''
+title = "You're not on a branch (detached HEAD)"
+explain = '''
+You checked out a specific commit or tag rather than a branch. You can look
+around, but new commits won't belong to any branch and are easy to lose.
+'''
+fixes = [
+  "Go back to a branch: `git switch main`",
+  "To keep work you did here, make a branch from it: `git switch -c my-branch`",
+]
+examples = ['''HEAD detached at 3f2a1bc''']
+
+[[rule]]
+id = "git-large-file"
+language = "git"
+priority = 55
+pattern = '''(?:exceeds GitHub's file size limit|GH001: Large files detected)'''
+title = "GitHub rejected a file over 100 MB"
+explain = '''
+A file in your commits is bigger than GitHub's 100 MB limit. Removing it in a new
+commit isn't enough; it's still in the earlier commit being pushed.
+'''
+fixes = [
+  "If it's in your last commit only: `git rm --cached <file>`, add it to `.gitignore`, then `git commit --amend`",
+  "If it's further back, rewrite history with `git filter-repo --path <file> --invert-paths` (back up first)",
+  "For large files you do want to version, use Git LFS: `git lfs track \"*.bin\"`",
+]
+examples = ['''remote: error: GH001: Large files detected. You may want to try Git Large File Storage''']

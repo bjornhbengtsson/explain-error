@@ -1,0 +1,130 @@
+# Java (and JVM) rules.
+
+[[rule]]
+id = "java-npe-helpful"
+language = "java"
+priority = 65
+pattern = '''Cannot (?P<action>invoke|read field|read the array length|load from \w+ array|store to \w+ array|assign field) "?(?P<what>[^"]*)"? because "(?P<expr>[^"]+)" is null'''
+title = "`{expr}` is null"
+explain = '''
+Java tried to {action} `{what}`, but `{expr}` has no object in it. It may never
+have been assigned, or a method that can return `null` did.
+'''
+fixes = [
+  "Find where `{expr}` gets its value and make sure it's assigned (constructors are a common gap)",
+  "Check for null before using it: `if ({expr} != null)`",
+  "For values that may be absent, return `Optional` instead of `null`",
+]
+examples = ['''Exception in thread "main" java.lang.NullPointerException: Cannot invoke "String.length()" because "name" is null''', '''java.lang.NullPointerException: Cannot invoke "java.util.List.add(Object)" because "this.items" is null''']
+
+[[rule]]
+id = "java-npe"
+language = "java"
+priority = 40
+pattern = '''java\.lang\.NullPointerException'''
+title = "Something was null when it was used"
+explain = '''
+A variable that should hold an object held `null`, and code called a method or
+read a field on it. The first `at` line in the stack trace points to it.
+'''
+fixes = [
+  "Look at the first `at` line with your own class name and check each object used on that line",
+  "Make sure fields are initialized in the constructor",
+]
+examples = ['''Exception in thread "main" java.lang.NullPointerException''']
+
+[[rule]]
+id = "java-array-index"
+language = "java"
+pattern = '''(?:ArrayIndexOutOfBoundsException|IndexOutOfBoundsException): Index (?P<idx>-?\d+) out of bounds for length (?P<len>\d+)'''
+title = "Index {idx} doesn't exist (length is {len})"
+explain = '''
+Valid indexes go from 0 to {len} minus 1. Loops written as `i <= arr.length`
+are the usual culprit; use `<`.
+'''
+fixes = [
+  "Use `i < arr.length` (or `list.size()`) in loop conditions",
+  "Use a for-each loop if you don't need the index",
+]
+examples = ['''java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 5''']
+
+[[rule]]
+id = "java-class-not-found"
+language = "java"
+pattern = '''(?:ClassNotFoundException|NoClassDefFoundError|Could not find or load main class)(?::\s*|\s+)(?P<cls>[\w.$/]+)'''
+title = "Java can't find the class `{cls}`"
+explain = '''
+The class isn't on the classpath. When running your own program, you're usually
+in the wrong folder, used the file name instead of the class name, or left out the package name.
+'''
+fixes = [
+  "Run by class name, not file: `java Main`, not `java Main.class`",
+  "If the class has a `package`, run it from the source root with the full name: `java com.example.Main`",
+  "For a library class, add the jar to the classpath or the dependency to Maven/Gradle",
+]
+examples = ['''Error: Could not find or load main class Main''', '''java.lang.ClassNotFoundException: com.mysql.cj.jdbc.Driver''']
+
+[[rule]]
+id = "javac-cannot-find-symbol"
+language = "java"
+pattern = '''error: cannot find symbol'''
+title = "javac doesn't know a name you used"
+explain = '''
+The `symbol:` line below the error says what's unknown: a variable, method or
+class. Usually it's a typo, a missing import, or a variable declared in another scope.
+'''
+fixes = [
+  "Check the spelling and capitalization shown on the `symbol:` line",
+  "Add the import, e.g. `import java.util.ArrayList;`",
+  "Make sure the variable is declared in this block, not inside an inner one",
+]
+examples = ['''Main.java:5: error: cannot find symbol''']
+
+[[rule]]
+id = "java-class-version"
+language = "java"
+priority = 60
+pattern = '''compiled by a more recent version of the Java Runtime \(class file version (?P<have>[\d.]+)\), this version of the Java Runtime only recognizes class file versions up to (?P<max>[\d.]+)'''
+title = "The code was compiled for a newer Java than the one running it"
+explain = '''
+Class file version {have} needs a newer Java than the runtime you have (which
+supports up to {max}). Java version = class version minus 44, so 65 is Java 21,
+61 is Java 17, 55 is Java 11.
+'''
+fixes = [
+  "Check versions: `java -version` and `javac -version`; they should match",
+  "Install a newer JDK and point `JAVA_HOME` (and your IDE) at it",
+  "Or compile for the older version: `javac --release 17 ...`",
+]
+examples = ['''java.lang.UnsupportedClassVersionError: Main has been compiled by a more recent version of the Java Runtime (class file version 65.0), this version of the Java Runtime only recognizes class file versions up to 61.0''']
+
+[[rule]]
+id = "java-number-format"
+language = "java"
+pattern = '''NumberFormatException: For input string: "(?P<value>[^"]*)"'''
+title = "\"{value}\" isn't a valid number"
+explain = '''
+`Integer.parseInt` (or similar) got text that isn't a plain number: maybe empty,
+with spaces, a decimal point, or a number too large for `int`.
+'''
+fixes = [
+  "Trim input first: `Integer.parseInt(s.trim())`",
+  "Use `Double.parseDouble` for decimals, `Long.parseLong` for large numbers",
+  "Catch `NumberFormatException` to handle bad input",
+]
+examples = ['''java.lang.NumberFormatException: For input string: "12a"''']
+
+[[rule]]
+id = "java-concurrent-modification"
+language = "java"
+pattern = '''java\.util\.ConcurrentModificationException'''
+title = "A collection was changed while being looped over"
+explain = '''
+You added or removed items in a list or map inside a for-each loop over it.
+'''
+fixes = [
+  "Use `list.removeIf(x -> ...)`",
+  "Or loop with an explicit `Iterator` and call `it.remove()`",
+  "Or collect changes in a second list and apply them after the loop",
+]
+examples = ['''Exception in thread "main" java.util.ConcurrentModificationException''']

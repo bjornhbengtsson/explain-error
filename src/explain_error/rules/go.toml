@@ -1,0 +1,111 @@
+# Go compiler and runtime rules.
+
+[[rule]]
+id = "go-imported-not-used"
+language = "go"
+pattern = '''"(?P<pkg>[^"]+)" imported and not used'''
+title = "`{pkg}` is imported but never used"
+explain = '''
+Go refuses to compile files with unused imports.
+'''
+fixes = [
+  "Delete the import, or use it",
+  "Let your editor manage imports: run `goimports -w .` or turn on format-on-save",
+  "Need it only for side effects? Use `import _ \"{pkg}\"`",
+]
+examples = ['''./main.go:4:2: "os" imported and not used''']
+
+[[rule]]
+id = "go-declared-not-used"
+language = "go"
+pattern = '''declared and not used: (?P<name>\w+)'''
+title = "The variable `{name}` is never used"
+explain = '''
+Go doesn't compile with unused local variables. Sometimes this means you
+accidentally made a new variable with `:=` instead of assigning to an existing one with `=`.
+'''
+fixes = [
+  "Use `{name}` or delete it",
+  "If you meant to update an outer variable, use `=` instead of `:=`",
+  "To ignore a value on purpose, assign it to `_`",
+]
+examples = ['''./main.go:8:2: declared and not used: result''']
+
+[[rule]]
+id = "go-nil-pointer"
+language = "go"
+priority = 60
+pattern = '''invalid memory address or nil pointer dereference'''
+title = "A nil pointer was used"
+explain = '''
+You accessed a field or method through a pointer (or map, interface) that is
+nil. Frequently an error was ignored and the value it came with is nil.
+'''
+fixes = [
+  "Check errors before using the other return value: `if err != nil { return err }`",
+  "Initialize struct pointers (`&MyType{}`) before use",
+  "The first `.go:` line in the goroutine trace below the panic shows where",
+]
+examples = ['''panic: runtime error: invalid memory address or nil pointer dereference''']
+
+[[rule]]
+id = "go-index-out-of-range"
+language = "go"
+priority = 60
+pattern = '''index out of range \[(?P<idx>-?\d+)\] with length (?P<len>\d+)'''
+title = "Index {idx} doesn't exist in a slice of length {len}"
+explain = '''
+Valid indexes go from 0 to {len} minus 1. Check loop bounds and empty slices.
+'''
+fixes = [
+  "Use `for i, v := range s` instead of manual index math",
+  "Check `len(s)` before indexing",
+]
+examples = ['''panic: runtime error: index out of range [5] with length 3''']
+
+[[rule]]
+id = "go-deadlock"
+language = "go"
+priority = 60
+pattern = '''all goroutines are asleep - deadlock!'''
+title = "Every goroutine is waiting, so the program can never continue"
+explain = '''
+Usually a send on an unbuffered channel with no receiver, a receive with no
+sender, ranging over a channel nobody closes, or a `WaitGroup` that never reaches zero.
+'''
+fixes = [
+  "Make sure some goroutine receives from each channel you send on",
+  "`close(ch)` when you're done sending, if someone ranges over `ch`",
+  "Match each `wg.Add(1)` with a `wg.Done()`",
+]
+examples = ['''fatal error: all goroutines are asleep - deadlock!''']
+
+[[rule]]
+id = "go-nil-map"
+language = "go"
+priority = 60
+pattern = '''assignment to entry in nil map'''
+title = "You wrote to a map that was never created"
+explain = '''
+Declaring `var m map[string]int` gives a nil map, which can be read but not written.
+'''
+fixes = [
+  "Create it first: `m := make(map[string]int)`",
+  "For struct fields, initialize the map in a constructor",
+]
+examples = ['''panic: assignment to entry in nil map''']
+
+[[rule]]
+id = "go-no-module-provides"
+language = "go"
+pattern = '''no required module provides package (?P<pkg>[^\s;]+)'''
+title = "`{pkg}` isn't in your go.mod"
+explain = '''
+Go found an import of `{pkg}`, but no module in go.mod provides it.
+'''
+fixes = [
+  "Add it: `go get {pkg}`",
+  "Or let Go fix go.mod for you: `go mod tidy`",
+  "No go.mod at all? Run `go mod init <module-name>` first",
+]
+examples = ['''main.go:5:2: no required module provides package github.com/gorilla/mux; to add it:''']

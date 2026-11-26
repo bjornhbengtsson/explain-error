@@ -1,0 +1,403 @@
+# JavaScript, Node.js, npm and React rules.
+
+[[rule]]
+id = "js-cannot-read-property"
+language = "javascript"
+priority = 60
+pattern = '''TypeError: Cannot read properties of (?P<what>undefined|null) \(reading '(?P<prop>[^']+)'\)'''
+title = "You read `.{prop}` from something that is `{what}`"
+explain = '''
+The value before `.{prop}` is `{what}`. Typical causes: data that hasn't loaded yet
+(a fetch or API call still in progress), a missing key in an object, an array
+index past the end, or a DOM element that `querySelector` didn't find.
+'''
+fixes = [
+  "Use optional chaining to allow a missing value: `value?.{prop}`",
+  "Log the value before `.{prop}` to see where it became `{what}`",
+  "In React, render a loading state until the data arrives: `if (!data) return null`",
+  "For DOM elements, run your script after the page loads (`defer` on the script tag) and check the selector",
+]
+docs = "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Cant_access_property"
+examples = ['''TypeError: Cannot read properties of undefined (reading 'map')''', '''Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')''']
+
+[[rule]]
+id = "js-cannot-read-property-legacy"
+language = "javascript"
+priority = 60
+pattern = '''TypeError: Cannot read property '(?P<prop>[^']+)' of (?P<what>undefined|null)'''
+title = "You read `.{prop}` from something that is `{what}`"
+explain = '''
+The value before `.{prop}` is `{what}`. Typical causes: data that hasn't loaded yet,
+a missing key in an object, or a DOM element that wasn't found.
+'''
+fixes = [
+  "Use optional chaining: `obj?.{prop}`",
+  "Log the value before `.{prop}` to see where it became `{what}`",
+]
+examples = ['''TypeError: Cannot read property 'length' of undefined''']
+
+[[rule]]
+id = "js-undefined-is-not-object"
+language = "javascript"
+priority = 55
+pattern = '''TypeError: (?P<what>undefined|null) is not an object \(evaluating '(?P<expr>[^']+)'\)'''
+title = "`{expr}` failed because part of it is `{what}`"
+explain = '''
+This is Safari's (and React Native's) way of saying you read a property from
+`{what}`. Something in `{expr}` hasn't been set yet.
+'''
+fixes = [
+  "Use optional chaining (`a?.b?.c`) where values may be missing",
+  "Log each part of `{expr}` to find the one that is `{what}`",
+]
+examples = ['''TypeError: undefined is not an object (evaluating 'this.props.navigation')''']
+
+[[rule]]
+id = "js-not-a-function"
+language = "javascript"
+pattern = '''TypeError: (?P<expr>[^
+]+?) is not a function'''
+title = "`{expr}` isn't a function"
+explain = '''
+You called `{expr}(...)`, but its value is something else (often `undefined`).
+Common causes: a typo in the method name, calling an array method on a non-array
+(like `.map` on an object), or a wrong import (default vs. named).
+'''
+fixes = [
+  "Log `typeof` the thing before `()` to see what it really is",
+  "For `.map`/`.forEach`/`.filter`, make sure the value is an array: `Array.isArray(x)`; for objects use `Object.values(x).map(...)`",
+  "Check the import: `import foo from` vs. `import { foo } from` depends on how the module exports it",
+]
+examples = ['''TypeError: data.map is not a function''', '''TypeError: (0 , _utils.formatDate) is not a function''']
+
+[[rule]]
+id = "js-not-defined"
+language = "javascript"
+pattern = '''ReferenceError: (?P<name>[\w$]+) is not defined'''
+title = "`{name}` doesn't exist here"
+explain = '''
+Nothing named `{name}` is in scope at this point. It may be misspelled, declared
+inside another function or block, or need an import. `require`, `module`,
+`__dirname` and `exports` don't exist in ES modules or the browser; `window` and
+`document` don't exist in Node.
+'''
+fixes = [
+  "Check the spelling and where `{name}` is declared",
+  "Import it if it comes from another file or package",
+  "If `{name}` is `require`/`__dirname`, you're in an ES module: use `import` and `import.meta.dirname` (Node 20.11+)",
+  "If `{name}` is `window`/`document`, the code ran on the server (Node, Next.js SSR); move it into a browser-only place like `useEffect`",
+]
+examples = ['''ReferenceError: require is not defined in ES module scope, you can use import instead''', '''Uncaught ReferenceError: $ is not defined''']
+
+[[rule]]
+id = "js-before-initialization"
+language = "javascript"
+pattern = '''ReferenceError: Cannot access '(?P<name>[\w$]+)' before initialization'''
+title = "`{name}` is used before its `let`/`const`/`class` line runs"
+explain = '''
+Variables declared with `let`, `const` or `class` can't be used before the line
+that declares them. Besides plain ordering mistakes, this often comes from two
+modules importing each other (a circular import).
+'''
+fixes = [
+  "Move the declaration of `{name}` above where it's used",
+  "If two files import each other, move the shared code into a third file",
+]
+examples = ['''ReferenceError: Cannot access 'config' before initialization''']
+
+[[rule]]
+id = "js-assign-to-const"
+language = "javascript"
+pattern = '''TypeError: Assignment to constant variable'''
+title = "You reassigned a `const`"
+explain = '''
+A variable declared with `const` can't be given a new value. (You can still change
+the contents of a `const` object or array, just not replace it.)
+'''
+fixes = [
+  "Declare it with `let` if it needs to change",
+  "Or create a new variable instead of reassigning",
+]
+examples = ['''TypeError: Assignment to constant variable.''']
+
+[[rule]]
+id = "js-json-parse"
+language = "javascript"
+pattern = '''(?:Unexpected token .{1,5}in JSON|is not valid JSON|Unexpected end of JSON input|JSON\.parse: unexpected)'''
+title = "The text being parsed isn't valid JSON"
+explain = '''
+`JSON.parse` (or `response.json()`) got something that isn't JSON. If it starts
+with `<`, the server sent an HTML page, usually an error page, a 404, or a login
+redirect, instead of the JSON you expected. "Unexpected end" means the body was
+empty.
+'''
+fixes = [
+  "Log the raw text first: `const text = await res.text(); console.log(res.status, text)`",
+  "Check the URL and that `res.ok` is true before calling `res.json()`",
+  "If the body is empty (e.g. HTTP 204), don't parse it",
+]
+examples = ['''SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON''', '''SyntaxError: Unexpected end of JSON input''', '''SyntaxError: Unexpected token < in JSON at position 0''']
+
+[[rule]]
+id = "js-max-call-stack"
+language = "javascript"
+pattern = '''RangeError: Maximum call stack size exceeded'''
+title = "A function kept calling itself until the stack ran out"
+explain = '''
+Infinite recursion: a function calls itself (or two call each other) with no stop
+condition. A setter that assigns to its own property, or in React a state update
+that triggers itself, does the same thing.
+'''
+fixes = [
+  "Check the recursive function's base case",
+  "In a setter, store the value under another name: `this._value = v`",
+  "Look at the repeating function names in the stack trace to find the loop",
+]
+examples = ['''RangeError: Maximum call stack size exceeded''']
+
+[[rule]]
+id = "node-module-not-found"
+language = "javascript"
+pattern = '''Cannot find (?:module|package) '(?P<module>[^']+)''''
+title = "Node can't find `{module}`"
+explain = '''
+If `{module}` is a package name, it isn't installed in this project (or
+`node_modules` is missing). If it starts with `./` or `../`, the path is wrong
+relative to the importing file. ES modules also need the file extension:
+`./utils.js`, not `./utils`.
+'''
+fixes = [
+  "Install dependencies: `npm install` (or `pnpm install` / `yarn`)",
+  "If it's a package that isn't in package.json yet: `npm install {module}`",
+  "For local files, check the relative path and add the `.js` extension in ES modules",
+  "Make sure you run the command from the folder with package.json",
+]
+examples = ['''Error: Cannot find module 'express'''', '''Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/utils' imported from /app/src/index.js''', '''Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from /app/index.js''']
+
+[[rule]]
+id = "node-require-esm"
+language = "javascript"
+priority = 60
+pattern = '''(?:ERR_REQUIRE_ESM|require\(\) of ES Module)'''
+title = "You used `require()` on a package that only supports `import`"
+explain = '''
+The package is an ES module, so CommonJS `require()` can't load it (Node before
+20.19/22.12). Many packages, e.g. `node-fetch` 3, `chalk` 5 and `nanoid` 4, made this switch.
+'''
+fixes = [
+  "Switch your file to ES modules: add `\"type\": \"module\"` to package.json and use `import`",
+  "Or use a dynamic import from CommonJS: `const { default: fetch } = await import(\"node-fetch\")`",
+  "Or update Node to 22.12+ where `require()` of ES modules works",
+  "Or install the package's last CommonJS version (e.g. `npm install node-fetch@2`)",
+]
+examples = ['''Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/node-fetch/src/index.js from /app/index.js not supported.''']
+
+[[rule]]
+id = "js-import-outside-module"
+language = "javascript"
+pattern = '''Cannot use import statement outside a module'''
+title = "`import` was used in a file Node treats as CommonJS"
+explain = '''
+Node runs `.js` files as CommonJS unless told otherwise, and CommonJS doesn't
+understand `import`. In Jest and other test runners this means the file wasn't
+transformed.
+'''
+fixes = [
+  "Add `\"type\": \"module\"` to package.json",
+  "Or rename the file to `.mjs`",
+  "Or use `require()` instead of `import`",
+  "In a browser, add `type=\"module\"` to the script tag",
+]
+examples = ['''SyntaxError: Cannot use import statement outside a module''']
+
+[[rule]]
+id = "node-port-in-use"
+language = "javascript"
+priority = 60
+pattern = '''EADDRINUSE[^\n]*?:(?P<port>\d+)'''
+title = "Port {port} is already in use"
+explain = '''
+Another program is already listening on port {port}, often an earlier copy of your
+own server that's still running in another terminal.
+'''
+fixes = [
+  "Stop the other server (Ctrl+C in its terminal)",
+  "Find what's using it on macOS/Linux: `lsof -i :{port}` then `kill <PID>`",
+  "Find it on Windows: `netstat -ano | findstr :{port}` then `taskkill /PID <PID> /F`",
+  "Or run on another port, e.g. `PORT=3001 npm start`",
+]
+examples = ['''Error: listen EADDRINUSE: address already in use :::3000''', '''Error: listen EADDRINUSE: address already in use 127.0.0.1:8080''']
+
+[[rule]]
+id = "node-connection-refused"
+language = "javascript"
+priority = 55
+pattern = '''ECONNREFUSED (?P<addr>[\w.:\[\]]+)'''
+title = "Nothing is accepting connections at {addr}"
+explain = '''
+Your code tried to connect to {addr}, and nothing answered. The server or
+database there isn't running, or it's on a different port or host. With
+`localhost`, Node 17+ may try IPv6 `::1` while the server only listens on IPv4.
+'''
+fixes = [
+  "Start the server or database you're connecting to",
+  "Check the host and port in your config or `.env`",
+  "Try `127.0.0.1` instead of `localhost`",
+  "In Docker, use the service name (e.g. `db`) instead of `localhost`",
+]
+examples = ['''Error: connect ECONNREFUSED 127.0.0.1:5432''', '''connect ECONNREFUSED ::1:3000''']
+
+[[rule]]
+id = "browser-cors"
+language = "javascript"
+priority = 60
+pattern = '''has been blocked by CORS policy'''
+title = "The browser blocked a request to another origin (CORS)"
+explain = '''
+Your page asked a different origin (domain, port or protocol) for data, and that
+server didn't send back headers saying it allows your page. The browser enforces
+this; it isn't a bug in your fetch code, and it can only be fixed on the server
+side or by proxying.
+'''
+fixes = [
+  "If you own the server, allow your origin, e.g. in Express: `app.use(require(\"cors\")({ origin: \"http://localhost:5173\" }))`",
+  "In development, proxy API calls through your dev server (the Vite `server.proxy` or the CRA `proxy` setting)",
+  "For a third-party API without CORS, call it from your own backend instead of the browser",
+  "Don't use `mode: \"no-cors\"`; it hides the response from your code",
+]
+examples = ['''Access to fetch at 'http://localhost:8000/api' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.''']
+
+[[rule]]
+id = "npm-eresolve"
+language = "javascript"
+priority = 60
+pattern = '''(?:npm (?:ERR!|error) code ERESOLVE|ERESOLVE unable to resolve dependency tree)'''
+title = "npm found packages that want conflicting versions of a dependency"
+explain = '''
+Two packages need different versions of the same peer dependency (often
+`react`), so npm refuses to install. The "Could not resolve dependency" part of
+the log says which package wants what.
+'''
+fixes = [
+  "Read the `peer ...` lines in the log and upgrade the package that wants the old version",
+  "To install anyway with npm 6's looser behavior: `npm install --legacy-peer-deps`",
+  "Avoid `--force` unless you've checked the conflict is harmless",
+]
+examples = ['''npm ERR! code ERESOLVE''', '''npm error code ERESOLVE''']
+
+[[rule]]
+id = "npm-no-package-json"
+language = "javascript"
+priority = 55
+pattern = '''(?:ENOENT[^\n]*package\.json|Could not read package\.json)'''
+title = "There's no package.json in this folder"
+explain = '''
+npm looks for package.json in the current folder. You're probably one folder too
+high or too low, or the project hasn't been set up yet.
+'''
+fixes = [
+  "`cd` into the project folder (the one containing package.json)",
+  "Starting a new project? Run `npm init -y`",
+]
+examples = ['''npm ERR! enoent ENOENT: no such file or directory, open '/home/me/package.json'''', '''npm error enoent Could not read package.json: Error: ENOENT: no such file or directory''']
+
+[[rule]]
+id = "npm-missing-script"
+language = "javascript"
+pattern = '''Missing script: "(?P<script>[^"]+)"'''
+title = "package.json has no `{script}` script"
+explain = '''
+`npm run {script}` looks for `{script}` in the `scripts` section of package.json, and
+it isn't there. Projects name these differently, e.g. `dev` vs. `start`.
+'''
+fixes = [
+  "List the available scripts: `npm run`",
+  "Add it to package.json under `\"scripts\"`",
+]
+examples = ['''npm ERR! Missing script: "dev"''', '''npm error Missing script: "start"''']
+
+[[rule]]
+id = "node-heap-oom"
+language = "javascript"
+pattern = '''JavaScript heap out of memory'''
+title = "Node ran out of memory"
+explain = '''
+Node hit its memory limit. Large builds can legitimately need more, but this can
+also be an infinite loop that keeps growing an array or object.
+'''
+fixes = [
+  "Raise the limit: `NODE_OPTIONS=--max-old-space-size=4096 npm run build` (PowerShell: `$env:NODE_OPTIONS=\"--max-old-space-size=4096\"`)",
+  "Check for loops that push to arrays without stopping",
+]
+examples = ['''FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory''']
+
+[[rule]]
+id = "react-invalid-hook-call"
+language = "react"
+priority = 60
+pattern = '''Invalid hook call'''
+title = "A React hook was called in the wrong place"
+explain = '''
+Hooks like `useState` only work at the top level of a function component or a
+custom hook, not in loops, conditions, event handlers, class components or
+regular functions. It also happens when two copies of React are installed.
+'''
+fixes = [
+  "Move the hook to the top of the component, before any `return` or `if`",
+  "Make sure the function is a component (capitalized, used as `<Thing />`) or a hook (name starts with `use`)",
+  "Check for duplicate React: `npm ls react`",
+]
+docs = "https://react.dev/warnings/invalid-hook-call-warning"
+examples = ['''Error: Invalid hook call. Hooks can only be called inside of the body of a function component.''']
+
+[[rule]]
+id = "react-object-child"
+language = "react"
+priority = 60
+pattern = '''Objects are not valid as a React child'''
+title = "You tried to render an object directly in JSX"
+explain = '''
+JSX can render strings, numbers, elements and arrays of them, but not a plain
+object, Date or Promise. Render one of its fields instead.
+'''
+fixes = [
+  "Render a field: `{user.name}` instead of `{user}`",
+  "To see the whole object while debugging: `<pre>{JSON.stringify(obj, null, 2)}</pre>`",
+  "For a Date, use `date.toLocaleDateString()`; an `async` component in client code returns a Promise",
+]
+examples = ['''Error: Objects are not valid as a React child (found: object with keys {id, name}). If you meant to render a collection of children, use an array instead.''']
+
+[[rule]]
+id = "react-too-many-rerenders"
+language = "react"
+priority = 60
+pattern = '''Too many re-renders'''
+title = "A component sets state while rendering, which loops forever"
+explain = '''
+Something calls a state setter during render. The classic cause is
+`onClick={setCount(count + 1)}`, which calls the setter right away instead of
+passing a function.
+'''
+fixes = [
+  "Pass a function to event handlers: `onClick={() => setCount(count + 1)}`",
+  "Move state updates that depend on props into `useEffect` or compute the value directly",
+]
+examples = ['''Error: Too many re-renders. React limits the number of renders to prevent an infinite loop.''']
+
+[[rule]]
+id = "react-hydration"
+language = "react"
+priority = 55
+pattern = '''(?:Hydration failed|Text content does not match server-rendered HTML|hydrated but some attributes)'''
+title = "The page rendered differently on the server and in the browser"
+explain = '''
+React (often in Next.js) found that the server HTML doesn't match the browser's
+first render. Usual causes: dates, `Math.random()` or `window` used during render,
+invalid nesting like a `<div>` inside a `<p>`, or a browser extension changing the page.
+'''
+fixes = [
+  "Move browser-only values (time, random, `localStorage`, `window`) into `useEffect`",
+  "Fix invalid HTML nesting the error mentions",
+  "Test in a private window to rule out browser extensions",
+]
+examples = ['''Error: Hydration failed because the server rendered HTML didn't match the client.''']

@@ -1,0 +1,134 @@
+# Rust compiler and runtime rules.
+
+[[rule]]
+id = "rust-e0382-moved"
+language = "rust"
+pattern = '''error\[E0382\]: (?:borrow|use) of moved value: `(?P<name>[^`]+)`'''
+title = "`{name}` was used after being moved"
+explain = '''
+Ownership of `{name}` was handed to something else earlier (passed by value to a
+function, assigned to another variable, or used in a `for` loop), so you can't
+use it anymore.
+'''
+fixes = [
+  "Pass a reference instead: `&{name}` (or `&mut {name}`)",
+  "Clone it if you really need two copies: `{name}.clone()`",
+  "Loop over a reference to keep the collection: `for x in &{name}`",
+]
+docs = "https://doc.rust-lang.org/error_codes/E0382.html"
+examples = ['''error[E0382]: borrow of moved value: `s`''']
+
+[[rule]]
+id = "rust-e0502-borrow"
+language = "rust"
+pattern = '''error\[E0502\]: cannot borrow `(?P<name>[^`]+)` as (?P<kind>mutable|immutable) because it is also borrowed as'''
+title = "`{name}` is borrowed in two conflicting ways at once"
+explain = '''
+Rust allows either one mutable borrow or any number of shared ones at a time.
+Here a shared reference to `{name}` is still alive when you try to change it (or
+the other way round), e.g. pushing to a Vec while holding a reference into it.
+'''
+fixes = [
+  "Finish using the first reference before the second borrow (often: copy the value out first)",
+  "Use indexes instead of holding references while mutating",
+  "Collect the changes and apply them after the loop",
+]
+docs = "https://doc.rust-lang.org/error_codes/E0502.html"
+examples = ['''error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable''']
+
+[[rule]]
+id = "rust-e0308-mismatched"
+language = "rust"
+pattern = '''error\[E0308\]: mismatched types'''
+title = "A value has a different type than Rust expected"
+explain = '''
+Look at the `expected ..., found ...` lines below the error. Common cases:
+`&str` vs. `String`, a function body ending with a `;` (so it returns `()`), or
+integer types like `i32` vs. `usize`.
+'''
+fixes = [
+  "`&str` to `String`: `.to_string()`; `String` to `&str`: `&s`",
+  "Remove the `;` after the last expression if the function should return it",
+  "Convert numbers with `as` or `try_into()`",
+]
+docs = "https://doc.rust-lang.org/error_codes/E0308.html"
+examples = ['''error[E0308]: mismatched types''']
+
+[[rule]]
+id = "rust-e0425-not-found"
+language = "rust"
+pattern = '''error\[E0425\]: cannot find (?:value|function) `(?P<name>[^`]+)` in this scope'''
+title = "`{name}` isn't defined here"
+explain = '''
+There's no variable or function named `{name}` in scope. It may be a typo, defined in
+another block, or need a `use` statement.
+'''
+fixes = [
+  "Check the spelling, and follow the compiler's `help:` suggestion if it shows one",
+  "Bring it into scope with `use`, e.g. `use crate::utils::{name};`",
+]
+examples = ['''error[E0425]: cannot find value `count` in this scope''']
+
+[[rule]]
+id = "rust-e0599-no-method"
+language = "rust"
+pattern = '''error\[E0599\]: no method named `(?P<method>[^`]+)` found'''
+title = "There's no `.{method}()` for this type"
+explain = '''
+Either the method doesn't exist on this type, or it comes from a trait that
+isn't imported. The `help:` lines often name the trait to `use`.
+'''
+fixes = [
+  "Import the trait the compiler suggests, e.g. `use std::io::Write;`",
+  "Check you have the type you think: `Option`/`Result` need `.unwrap()`, `?` or `match` first",
+]
+examples = ['''error[E0599]: no method named `write_all` found for struct `File` in the current scope''']
+
+[[rule]]
+id = "rust-e0106-lifetime"
+language = "rust"
+pattern = '''error\[E0106\]: missing lifetime specifier'''
+title = "Rust needs to know how long a returned or stored reference lives"
+explain = '''
+A function returns a reference (or a struct holds one), and Rust can't tell which
+input it borrows from.
+'''
+fixes = [
+  "Return an owned value instead (`String` rather than `&str`)",
+  "Or name the lifetime: `fn longest<'a>(a: &'a str, b: &'a str) -> &'a str`",
+]
+docs = "https://doc.rust-lang.org/error_codes/E0106.html"
+examples = ['''error[E0106]: missing lifetime specifier''']
+
+[[rule]]
+id = "rust-unwrap-none"
+language = "rust"
+priority = 60
+pattern = '''called `Option::unwrap\(\)` on a `None` value'''
+title = "`.unwrap()` was called on `None`"
+explain = '''
+The program expected a value, but the `Option` was empty, so it panicked. The
+`panicked at` line shows where.
+'''
+fixes = [
+  "Handle the empty case: `if let Some(x) = opt { ... }` or `match`",
+  "Use a default: `opt.unwrap_or(default)`",
+  "At least say what went wrong: `.expect(\"config file should have a name\")`",
+]
+examples = ['''thread 'main' panicked at src/main.rs:5:37:
+called `Option::unwrap()` on a `None` value''']
+
+[[rule]]
+id = "rust-unwrap-err"
+language = "rust"
+priority = 60
+pattern = '''called `Result::unwrap\(\)` on an `Err` value: (?P<err>.+)'''
+title = "`.unwrap()` was called on an error"
+explain = '''
+An operation failed with `{err}` and `.unwrap()` turned it into a panic.
+'''
+fixes = [
+  "Propagate it with `?` in a function that returns `Result`",
+  "Or handle it with `match` / `if let Err(e) = ...`",
+]
+examples = ['''called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }''']

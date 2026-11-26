@@ -1,0 +1,99 @@
+# TypeScript compiler (tsc) rules.
+
+[[rule]]
+id = "ts2307-cannot-find-module"
+language = "typescript"
+priority = 65
+pattern = '''TS2307: Cannot find module '(?P<module>[^']+)'(?: or its corresponding type declarations)?'''
+title = "TypeScript can't find `{module}` or its types"
+explain = '''
+Either the package isn't installed, it has no type definitions, or (for a local
+path or alias like `@/components`) TypeScript's `paths`/`baseUrl` settings don't
+match your bundler's.
+'''
+fixes = [
+  "Install it: `npm install {module}`",
+  "Install its types if they're published separately: `npm install -D @types/{module}`",
+  "For `@/` style aliases, add matching `paths` in tsconfig.json",
+  "For files like `.css` or `.svg`, add a declaration such as `declare module \"*.svg\";` in a `.d.ts` file",
+]
+examples = ['''src/index.ts(1,21): error TS2307: Cannot find module 'lodash' or its corresponding type declarations.''']
+
+[[rule]]
+id = "ts2339-property-missing"
+language = "typescript"
+pattern = '''TS2339: Property '(?P<prop>[^']+)' does not exist on type '(?P<type>[^']+)''''
+title = "TypeScript doesn't know about `.{prop}` on `{type}`"
+explain = '''
+The type `{type}` has no `{prop}`, as far as TypeScript knows. Either the name is
+wrong, the value can be one of several types and only some have `{prop}`, or the
+type definition is missing the field.
+'''
+fixes = [
+  "Check the spelling of `{prop}`",
+  "If `{type}` is a union, narrow it first: `if (\"{prop}\" in x)` or check a tag field",
+  "If the field really exists, add it to the type or interface",
+  "For `{}` or `object`, give the value a proper type instead of leaving it untyped",
+]
+examples = ['''src/app.ts(10,15): error TS2339: Property 'name' does not exist on type '{}'.''']
+
+[[rule]]
+id = "ts2322-not-assignable"
+language = "typescript"
+pattern = '''TS2322: Type '(?P<a>.+?)' is not assignable to type '(?P<b>.+?)'\.'''
+title = "A `{a}` was used where `{b}` is required"
+explain = '''
+You assigned, returned or passed a value of type `{a}` where TypeScript expects
+`{b}`. Read the indented lines under the error; they say which part doesn't fit.
+'''
+fixes = [
+  "If `{a}` includes `undefined`, handle that case first or provide a default: `value ?? fallback`",
+  "Convert the value if needed, e.g. `Number(x)` or `String(x)`",
+  "If the expected type is wrong, change the annotation instead",
+]
+examples = ['''src/app.ts(3,7): error TS2322: Type 'string' is not assignable to type 'number'.''', '''error TS2322: Type 'string | undefined' is not assignable to type 'string'.''']
+
+[[rule]]
+id = "ts2345-argument"
+language = "typescript"
+pattern = '''TS2345: Argument of type '(?P<a>.+?)' is not assignable to parameter of type '(?P<b>.+?)'\.'''
+title = "You passed a `{a}` to a parameter that wants `{b}`"
+explain = '''
+The function's parameter is typed `{b}`, and the value you passed is `{a}`.
+'''
+fixes = [
+  "If `{a}` may be `undefined` or `null`, check for that before the call",
+  "Convert the value to the expected type",
+  "Check that you're passing the arguments in the right order",
+]
+examples = ['''error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.''']
+
+[[rule]]
+id = "ts-possibly-undefined"
+language = "typescript"
+pattern = '''TS(?:2532|18048|18047|2531): (?P<what>.+?) is possibly '(?P<kind>undefined|null)'\.'''
+title = "{what} might be `{kind}` here"
+explain = '''
+TypeScript can't prove {what} has a value at this point, so it won't let you use
+it as if it does.
+'''
+fixes = [
+  "Check it first: `if (!x) return;`",
+  "Use optional chaining or a default: `x?.length ?? 0`",
+  "If you're certain it's set, use a non-null assertion `x!`, sparingly",
+]
+examples = ['''error TS18048: 'user' is possibly 'undefined'.''', '''error TS2532: Object is possibly 'undefined'.''']
+
+[[rule]]
+id = "ts7006-implicit-any"
+language = "typescript"
+pattern = '''TS7006: Parameter '(?P<name>[^']+)' implicitly has an 'any' type'''
+title = "The parameter `{name}` needs a type"
+explain = '''
+With `strict` on, TypeScript requires a type for each parameter it can't infer.
+'''
+fixes = [
+  "Add a type: `({name}: string) => ...`",
+  "If it's a callback, type the function it's passed to so TypeScript can infer it",
+]
+examples = ['''src/utils.ts(4,20): error TS7006: Parameter 'item' implicitly has an 'any' type.''']

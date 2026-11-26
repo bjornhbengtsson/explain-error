@@ -1,0 +1,434 @@
+# Python rules. See CONTRIBUTING.md for the format.
+# Placeholders: {group} inserts a captured group; {group|pip} maps an import name
+# to its pip package (cv2 -> opencv-python); {group|root} keeps the part before the first dot.
+
+[[rule]]
+id = "py-module-not-found"
+language = "python"
+pattern = '''ModuleNotFoundError: No module named '(?P<module>[\w.]+)''''
+title = "Python can't find the module `{module}`"
+explain = '''
+Python looked for `{module}` and couldn't find it. Usually the package isn't
+installed, or it's installed in a different Python than the one running your
+code (a different virtual environment, or a second Python on the system).
+'''
+fixes = [
+  "Install it into the Python you're running: `python -m pip install {module|pip}`",
+  "Check which Python is running and where pip installs to: `python -c \"import sys; print(sys.executable)\"` and `python -m pip --version`",
+  "If you use a virtual environment, activate it first (`.venv\\Scripts\\activate` on Windows, `source .venv/bin/activate` elsewhere)",
+  "If `{module}` is your own file, run Python from the project root and check that the file name and folder are spelled the same",
+]
+docs = "https://docs.python.org/3/library/exceptions.html#ModuleNotFoundError"
+examples = ['''ModuleNotFoundError: No module named 'requests'''', '''ModuleNotFoundError: No module named 'cv2'''']
+
+[[rule]]
+id = "py-cannot-import-name"
+language = "python"
+pattern = '''ImportError: cannot import name '(?P<name>\w+)' from '(?P<module>[\w.]+)''''
+title = "`{name}` isn't available in `{module}`"
+explain = '''
+The module `{module}` was found, but it has no `{name}`. Three usual causes: a
+typo, a library version where `{name}` was renamed or removed, or a circular
+import, where two of your files import each other and one isn't finished
+loading yet (the message then says "partially initialized module").
+'''
+fixes = [
+  "Check the spelling and capitalization of `{name}`",
+  "Check your installed version: `python -m pip show {module|pip}`, then look up `{name}` in that version's docs",
+  "If the message says \"partially initialized module\", move one of the imports inside the function that uses it, or move shared code into a third file",
+  "Make sure none of your own files is named `{module|root}.py`, which would hide the real library",
+]
+examples = ['''ImportError: cannot import name 'soft_unicode' from 'markupsafe' (/venv/lib/python3.11/site-packages/markupsafe/__init__.py)''']
+
+[[rule]]
+id = "py-name-error"
+language = "python"
+pattern = '''NameError: name '(?P<name>\w+)' is not defined'''
+title = "`{name}` is used before it exists"
+explain = '''
+Python reached a line that uses `{name}`, but nothing by that name has been
+defined at that point: no variable, function, or import.
+'''
+fixes = [
+  "Check for a typo or different capitalization (`{name}` vs. how you defined it)",
+  "If `{name}` comes from a library, add the import at the top of the file",
+  "If it's defined later in the file or inside another function, move the definition above where it's used",
+  "In a notebook, run the cell that defines `{name}` first",
+]
+examples = ['''NameError: name 'pd' is not defined''']
+
+[[rule]]
+id = "py-attr-none"
+language = "python"
+priority = 60
+pattern = '''AttributeError: 'NoneType' object has no attribute '(?P<attr>\w+)''''
+title = "You called `.{attr}` on `None`"
+explain = '''
+Something you expected to be an object is actually `None`. Usually a function
+didn't return anything (no `return`, so it returned `None`), a lookup like
+`dict.get()` or `re.match()` found nothing, or an in-place method like
+`list.sort()` was assigned to a variable.
+'''
+fixes = [
+  "Find the variable before `.{attr}` on the error line and print it to see where it became `None`",
+  "Make sure the function that produced it has a `return` statement on every path",
+  "Don't assign in-place methods: write `items.sort()` instead of `items = items.sort()`",
+  "If `None` is a valid result, check for it first: `if x is not None:`",
+]
+examples = ['''AttributeError: 'NoneType' object has no attribute 'group'''']
+
+[[rule]]
+id = "py-module-attr"
+language = "python"
+priority = 55
+pattern = '''AttributeError: (?:partially initialized )?module '(?P<module>[\w.]+)' has no attribute '(?P<attr>\w+)''''
+title = "The module `{module}` has no `{attr}`"
+explain = '''
+Very often this means one of your own files is named `{module|root}.py` and Python
+imported it instead of the real library. Otherwise `{attr}` may be misspelled,
+missing from your installed version, or part of a submodule that has to be
+imported on its own.
+'''
+fixes = [
+  "Look for a file named `{module|root}.py` (or a folder `{module|root}/`) in your project and rename it, then delete any `__pycache__` folders",
+  "Check the spelling of `{attr}` and that it exists in your installed version: `python -m pip show {module|pip}`",
+  "Import the submodule directly if `{attr}` lives in one, e.g. `import {module}.{attr}`",
+]
+examples = ['''AttributeError: module 'random' has no attribute 'randint'''', '''AttributeError: partially initialized module 'pandas' has no attribute 'DataFrame' (most likely due to a circular import)''']
+
+[[rule]]
+id = "py-attr"
+language = "python"
+pattern = '''AttributeError: '(?P<type>\w+)' object has no attribute '(?P<attr>\w+)''''
+title = "A `{type}` doesn't have `.{attr}`"
+explain = '''
+You used `.{attr}` on a value of type `{type}`, and that type has no such
+method or attribute. Either the name is off, or the value isn't the type you
+think it is.
+'''
+fixes = [
+  "Print `type(x)` for the value before `.{attr}` to see what it really is",
+  "List what it does have: `print(dir(x))`",
+  "Check for a typo or a method from another language (e.g. `.push` is JavaScript; Python lists use `.append`)",
+]
+examples = ['''AttributeError: 'list' object has no attribute 'push'''', '''AttributeError: 'str' object has no attribute 'decode'''']
+
+[[rule]]
+id = "py-not-subscriptable"
+language = "python"
+pattern = '''TypeError: '(?P<type>\w+)' object is not subscriptable'''
+title = "You used `[...]` on a `{type}`"
+explain = '''
+Square brackets only work on things like lists, dicts, tuples and strings. The
+value here is a `{type}`. If it's `NoneType`, a function returned nothing; if it's
+`function` or `method`, you probably forgot to call it with `()` first.
+'''
+fixes = [
+  "If it's a function, call it before indexing: `get_items()[0]`, not `get_items[0]`",
+  "If it's `NoneType`, find where the value became `None` (often a missing `return`)",
+  "Print `type(x)` just before the line to check what you have",
+]
+examples = ['''TypeError: 'NoneType' object is not subscriptable''', '''TypeError: 'method' object is not subscriptable''']
+
+[[rule]]
+id = "py-not-callable"
+language = "python"
+pattern = '''TypeError: '(?P<type>\w+)' object is not callable'''
+title = "You called a `{type}` like a function"
+explain = '''
+Something followed by `()` isn't a function. Most often a variable has the same
+name as a function or built-in and replaced it (e.g. `list = [1, 2]`, then
+`list(...)`), or you used `()` where you meant `[]`.
+'''
+fixes = [
+  "Look for a variable that shadows a function or built-in like `list`, `str`, `dict`, `sum`, `max` or `input`, and rename it",
+  "Use `[]` instead of `()` to index a list or dict",
+  "Check for a missing operator, e.g. `2(x + 1)` should be `2 * (x + 1)`",
+]
+examples = ['''TypeError: 'str' object is not callable''', '''TypeError: 'list' object is not callable''']
+
+[[rule]]
+id = "py-str-concat"
+language = "python"
+priority = 55
+pattern = '''TypeError: can only concatenate str \(not "(?P<type>\w+)"\) to str'''
+title = "You added a `{type}` to a string"
+explain = '''
+Python won't mix text and other types with `+`. Convert the `{type}` to text first,
+or use an f-string, which converts for you.
+'''
+fixes = [
+  "Use an f-string: `f\"Total: {total}\"`",
+  "Or convert explicitly: `\"Total: \" + str(total)`",
+]
+examples = ['''TypeError: can only concatenate str (not "int") to str''']
+
+[[rule]]
+id = "py-unsupported-operand"
+language = "python"
+pattern = '''TypeError: unsupported operand type\(s\) for (?P<op>\S+): '(?P<a>\w+)' and '(?P<b>\w+)''''
+title = "`{op}` doesn't work between `{a}` and `{b}`"
+explain = '''
+You used `{op}` with a `{a}` on the left and a `{b}` on the right, and Python doesn't
+know how to combine them. Often one side is `None` (a function didn't return a
+value) or a number is still a string (from `input()` or a file).
+'''
+fixes = [
+  "If one side is `NoneType`, find where that value came from and make sure it returns something",
+  "Convert text to a number first: `int(x)` or `float(x)`",
+  "Print both values and their `type()` just before the line",
+]
+examples = ['''TypeError: unsupported operand type(s) for +: 'int' and 'str'''', '''TypeError: unsupported operand type(s) for +=: 'NoneType' and 'int'''']
+
+[[rule]]
+id = "py-missing-argument"
+language = "python"
+pattern = '''TypeError: (?P<func>[\w.]+)\(\) missing (?P<n>\d+) required positional arguments?: (?P<args>.+)'''
+title = "`{func}()` was called without {args}"
+explain = '''
+`{func}()` needs {n} more argument(s) than you passed. If `self` is the missing one,
+you called a method on the class itself instead of on an instance.
+'''
+fixes = [
+  "Pass the missing argument(s): {args}",
+  "If `self` is missing, create an instance first: `obj = MyClass()` then `obj.method()`, not `MyClass.method()`",
+  "Check the function's definition for the argument order",
+]
+examples = ['''TypeError: greet() missing 1 required positional argument: 'name'''', '''TypeError: Dog.bark() missing 1 required positional argument: 'self'''']
+
+[[rule]]
+id = "py-key-error"
+language = "python"
+pattern = '''^KeyError: (?P<key>.+)$'''
+title = "The key {key} isn't in the dictionary"
+explain = '''
+You looked up {key} in a dict (or a pandas DataFrame column), and it isn't there.
+Check the exact spelling, capitalization, spaces and type: `1` and `"1"` are
+different keys.
+'''
+fixes = [
+  "Print the keys that do exist: `print(d.keys())` (or `df.columns` for pandas)",
+  "Use `d.get(key)` or `d.get(key, default)` if the key may be missing",
+  "For CSV columns, look for stray spaces in the header: `df.columns = df.columns.str.strip()`",
+]
+examples = ['''KeyError: 'username'''', '''KeyError: 0''']
+
+[[rule]]
+id = "py-index-error"
+language = "python"
+pattern = '''IndexError: (?P<type>\w+) index out of range'''
+title = "You asked for a `{type}` position that doesn't exist"
+explain = '''
+The index is at or past the end of the {type}. Positions start at 0, so a list of 3
+items has positions 0, 1 and 2. An empty {type} has no positions at all.
+'''
+fixes = [
+  "Print `len(x)` and the index just before the line",
+  "Loop over items directly (`for item in items:`) instead of using `range(len(items) + 1)`",
+  "Check for an empty {type} before taking `x[0]`: `if x:`",
+]
+examples = ['''IndexError: list index out of range''', '''IndexError: string index out of range''']
+
+[[rule]]
+id = "py-indentation"
+language = "python"
+priority = 55
+pattern = '''(?P<kind>IndentationError|TabError): (?P<msg>.+)'''
+title = "Python's indentation is off: {msg}"
+explain = '''
+In Python, indentation is part of the syntax. Blocks after `if`, `for`, `def`
+and so on must be indented consistently, and tabs and spaces can't be mixed.
+'''
+fixes = [
+  "Indent with 4 spaces everywhere; in your editor, turn on \"convert tabs to spaces\"",
+  "Make sure each `if`/`for`/`def` line ending in `:` is followed by at least one indented line (use `pass` as a placeholder)",
+  "Check the line above the error too; the real mistake is often there",
+]
+examples = ['''IndentationError: expected an indented block after 'if' statement on line 3''', '''TabError: inconsistent use of tabs and spaces in indentation''']
+
+[[rule]]
+id = "py-syntax-error"
+language = "python"
+priority = 40
+pattern = '''^\s*SyntaxError: (?P<msg>.+)$'''
+title = "Python couldn't parse your code: {msg}"
+explain = '''
+The code isn't valid Python, so nothing ran. The caret `^` in the output points
+at where Python gave up, but the actual mistake is often just before it: an
+unclosed bracket or quote, a missing `:` after `if`/`for`/`def`, or `=` where `==`
+was meant.
+'''
+fixes = [
+  "Look at the marked line and the line above it for an unclosed `(`, `[`, `{` or quote",
+  "Check that `if`, `for`, `while`, `def` and `class` lines end with `:`",
+  "If you pasted the code, check for curly quotes (“ ”) instead of straight quotes",
+]
+examples = ['''SyntaxError: invalid syntax''', '''SyntaxError: '(' was never closed''']
+
+[[rule]]
+id = "py-file-not-found"
+language = "python"
+pattern = '''FileNotFoundError: \[Errno 2\] No such file or directory: '(?P<path>[^']+)''''
+title = "There's no file at `{path}`"
+explain = '''
+Relative paths like `{path}` are looked up from the folder you ran Python from
+(the current working directory), not from the folder your script is in. That
+mismatch is the usual cause, especially when running from an editor.
+'''
+fixes = [
+  "Print where Python is looking: `import os; print(os.getcwd())`",
+  "Build the path from the script's own folder: `from pathlib import Path; path = Path(__file__).parent / \"{path}\"`",
+  "Check the file name's spelling and extension (Windows hides extensions by default, so `data.csv` may really be `data.csv.txt`)",
+]
+examples = ['''FileNotFoundError: [Errno 2] No such file or directory: 'data.csv'''']
+
+[[rule]]
+id = "py-recursion"
+language = "python"
+pattern = '''RecursionError: maximum recursion depth exceeded'''
+title = "A function kept calling itself until Python stopped it"
+explain = '''
+A recursive function never reached its stopping case, or two functions keep
+calling each other. A common accidental cause is a property or `__getattr__`
+that reads itself, e.g. a `name` property that returns `self.name`.
+'''
+fixes = [
+  "Check the base case: the input must get closer to it on every call",
+  "In a property, store the value under a different name (`self._name`)",
+  "For deep but correct recursion, rewrite it as a loop",
+]
+examples = ['''RecursionError: maximum recursion depth exceeded while calling a Python object''']
+
+[[rule]]
+id = "py-invalid-int"
+language = "python"
+pattern = '''ValueError: invalid literal for int\(\) with base 10: '(?P<value>[^']*)''''
+title = "`int()` can't turn '{value}' into a whole number"
+explain = '''
+`int()` only accepts text that is a plain whole number. '{value}' isn't: it may be
+empty, have a decimal point, spaces, a newline, or other characters.
+'''
+fixes = [
+  "For decimals, use `float(x)`, or `int(float(x))` to drop the fraction",
+  "Strip whitespace first: `int(x.strip())`",
+  "Skip blank lines or invalid input with `try`/`except ValueError`",
+]
+examples = ['''ValueError: invalid literal for int() with base 10: '3.5'''', '''ValueError: invalid literal for int() with base 10: ''''']
+
+[[rule]]
+id = "py-unicode-decode"
+language = "python"
+pattern = '''UnicodeDecodeError: '(?P<codec>[\w-]+)' codec can't decode'''
+title = "The file isn't in the `{codec}` text encoding"
+explain = '''
+Python read the file as `{codec}` text, but it contains bytes that aren't valid in
+that encoding. On Windows Python may default to `cp1252`; many files are UTF-8,
+and Excel CSVs are often `cp1252` or UTF-16.
+'''
+fixes = [
+  "Name the encoding when opening: `open(path, encoding=\"utf-8\")`",
+  "For Excel-exported CSVs, try `encoding=\"utf-8-sig\"` or `encoding=\"cp1252\"`",
+  "If the file isn't text at all (an image or `.xlsx`), open it in binary mode `\"rb\"` or use the right library",
+]
+examples = ['''UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte''', '''UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 1234''']
+
+[[rule]]
+id = "py-unbound-local"
+language = "python"
+pattern = '''UnboundLocalError: .*?'(?P<name>\w+)''''
+title = "`{name}` is read inside a function before it's assigned there"
+explain = '''
+Because the function assigns to `{name}` somewhere, Python treats `{name}` as a
+local variable for the whole function, so reading it before that assignment
+fails, even if a global `{name}` exists.
+'''
+fixes = [
+  "Pass `{name}` in as an argument and return the new value instead of changing a global",
+  "If you really mean the global one, add `global {name}` at the top of the function",
+  "Make sure `{name}` is assigned on every path (e.g. before an `if` that may not run)",
+]
+examples = ['''UnboundLocalError: cannot access local variable 'count' where it is not associated with a value''', '''UnboundLocalError: local variable 'total' referenced before assignment''']
+
+[[rule]]
+id = "py-zero-division"
+language = "python"
+pattern = '''ZeroDivisionError: (?P<msg>.+)'''
+title = "Division by zero"
+explain = '''
+The number on the right of `/`, `//` or `%` was 0. Often it's a count or length
+that was 0 because a list or file was empty.
+'''
+fixes = [
+  "Check the divisor first: `avg = total / n if n else 0`",
+  "Find out why it's 0, e.g. an empty list or a filter that matched nothing",
+]
+examples = ['''ZeroDivisionError: division by zero''']
+
+[[rule]]
+id = "pip-externally-managed"
+language = "python"
+priority = 60
+pattern = '''externally-managed-environment'''
+title = "Your system Python won't let pip install packages into it"
+explain = '''
+Newer Linux distributions and Homebrew protect the Python the system itself
+uses, so `pip install` refuses to change it. Install into a virtual environment
+instead.
+'''
+fixes = [
+  "Create and use a virtual environment: `python3 -m venv .venv`, then `source .venv/bin/activate`, then `pip install ...`",
+  "For command-line tools, use `pipx install <tool>`",
+  "Avoid `--break-system-packages` unless you know what it may break",
+]
+examples = ['''error: externally-managed-environment''']
+
+[[rule]]
+id = "py-ssl-verify"
+language = "python"
+pattern = '''CERTIFICATE_VERIFY_FAILED'''
+title = "Python couldn't verify the server's HTTPS certificate"
+explain = '''
+Python doesn't trust the certificate the server sent. On macOS the python.org
+installer needs a one-time certificate install; on school or work networks a
+proxy often swaps in its own certificate.
+'''
+fixes = [
+  "On macOS, run `Install Certificates.command` from your Python folder in Applications",
+  "Update certificates: `python -m pip install --upgrade certifi`",
+  "On a school or work network, ask IT for the proxy's certificate and set `SSL_CERT_FILE` (or `REQUESTS_CA_BUNDLE`) to it",
+  "Don't turn verification off (`verify=False`) except for a quick local test",
+]
+examples = ['''ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate''']
+
+[[rule]]
+id = "py-cant-open-file"
+language = "python"
+pattern = '''can't open file '(?P<path>[^']+)': \[Errno 2\]'''
+title = "Python can't find the script `{path}`"
+explain = '''
+You ran `python {path}`, but there's no file there relative to the current folder.
+Usually the terminal is in a different folder than the script.
+'''
+fixes = [
+  "Check where you are: `pwd` (macOS/Linux) or `Get-Location` (PowerShell), and list files with `ls`",
+  "`cd` into the script's folder, or give the full path to the script",
+  "Check the extension; Windows may have saved it as `{path}.txt`",
+]
+examples = ['''python: can't open file 'C:\\Users\\me\\main.py': [Errno 2] No such file or directory''', '''python3: can't open file '/home/me/app.py': [Errno 2] No such file or directory''']
+
+[[rule]]
+id = "py-windows-store-alias"
+language = "python"
+priority = 60
+pattern = '''Python was not found; run without arguments to install from the Microsoft Store'''
+title = "Windows is sending `python` to the Microsoft Store"
+explain = '''
+Python isn't on your PATH, so Windows runs its Store shortcut instead. Either
+Python isn't installed, or it was installed without "Add python.exe to PATH".
+'''
+fixes = [
+  "Try the Python launcher, which is usually installed anyway: `py your_script.py`",
+  "Reinstall from python.org and tick \"Add python.exe to PATH\"",
+  "Turn off the shortcut: Settings > Apps > Advanced app settings > App execution aliases > turn off python.exe and python3.exe",
+]
+examples = ['''Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Manage App Execution Aliases.''']

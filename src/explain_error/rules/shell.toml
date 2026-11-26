@@ -1,0 +1,146 @@
+# Shell, OS and tooling rules (bash, zsh, PowerShell, cmd, Docker).
+
+[[rule]]
+id = "sh-command-not-found"
+language = "shell"
+pattern = '''(?P<cmd>[\w.+-]+): command not found'''
+title = "The shell can't find a program called `{cmd}`"
+explain = '''
+`{cmd}` isn't installed, or it's installed somewhere that isn't on your PATH. If
+you just installed it, open a new terminal so the PATH refreshes.
+'''
+fixes = [
+  "Check the spelling of `{cmd}`",
+  "Install it (e.g. `brew install {cmd}` or `sudo apt install {cmd}`)",
+  "Open a new terminal after installing",
+  "For a script in this folder, run it as `./{cmd}`",
+]
+examples = ['''bash: node: command not found''']
+
+[[rule]]
+id = "zsh-command-not-found"
+language = "shell"
+pattern = '''command not found: (?P<cmd>[\w.+-]+)'''
+title = "The shell can't find a program called `{cmd}`"
+explain = '''
+`{cmd}` isn't installed, or it isn't on your PATH. If you just installed it, open a
+new terminal or run `source ~/.zshrc`.
+'''
+fixes = [
+  "Check the spelling of `{cmd}`",
+  "Install it (e.g. `brew install {cmd}`)",
+  "For Python tools installed with `pip install --user`, add the user scripts folder to PATH, or use `pipx`",
+]
+examples = ['''zsh: command not found: python''']
+
+[[rule]]
+id = "ps-not-recognized"
+language = "shell"
+pattern = '''The term '(?P<cmd>[^']+)' is not recognized as (?:the )?name of a cmdlet'''
+title = "PowerShell can't find `{cmd}`"
+explain = '''
+`{cmd}` isn't installed or isn't on your PATH. If it's a script in the current
+folder, PowerShell requires `.\` in front of it.
+'''
+fixes = [
+  "Run local scripts with `.\\{cmd}`",
+  "If you just installed it, close and reopen the terminal (and VS Code) so PATH updates",
+  "Check where it is with `Get-Command {cmd}`",
+]
+examples = ['''npm : The term 'npm' is not recognized as the name of a cmdlet, function, script file, or operable program.''', '''python : The term 'python' is not recognized as the name of a cmdlet, function, script file, or operable program.''']
+
+[[rule]]
+id = "cmd-not-recognized"
+language = "shell"
+pattern = '''[‘'](?P<cmd>[^'’]+)[’'] is not recognized as an internal or external command'''
+title = "Windows can't find `{cmd}`"
+explain = '''
+`{cmd}` isn't installed or its folder isn't on your PATH.
+'''
+fixes = [
+  "Install it, then open a new terminal",
+  "Add its install folder to PATH: Start > \"Edit environment variables for your account\"",
+]
+examples = ['''\'git' is not recognized as an internal or external command,''']
+
+[[rule]]
+id = "ps-execution-policy"
+language = "shell"
+priority = 65
+pattern = '''running scripts is disabled on this system'''
+title = "PowerShell is blocking scripts (like a venv's Activate.ps1)"
+explain = '''
+Windows PowerShell's default execution policy blocks `.ps1` scripts, including
+virtual environment activation and the `npm`/`npx`/`yarn` shims.
+'''
+fixes = [
+  "Allow local scripts for your user only: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`",
+  "Or for this terminal only: `Set-ExecutionPolicy -Scope Process Bypass`",
+  "Or use Command Prompt, or call the `.cmd` version (e.g. `npm.cmd`)",
+]
+examples = ['''.venv\Scripts\Activate.ps1 cannot be loaded because running scripts is disabled on this system.''']
+
+[[rule]]
+id = "sh-permission-denied"
+language = "shell"
+priority = 20
+pattern = '''(?P<path>\S+): Permission denied'''
+title = "No permission to run or access `{path}`"
+explain = '''
+For a script, it usually isn't marked executable. For a file or folder, your
+user doesn't have access (it may belong to root, often because something was
+created with `sudo`).
+'''
+fixes = [
+  "Make a script executable: `chmod +x {path}`",
+  "Or run it with its interpreter: `bash {path}` / `python {path}`",
+  "If files were created with `sudo`, take them back: `sudo chown -R $USER <folder>`",
+  "Avoid `sudo npm install -g`; use a Node version manager like `nvm` instead",
+]
+examples = ['''bash: ./deploy.sh: Permission denied''']
+
+[[rule]]
+id = "docker-daemon"
+language = "docker"
+priority = 60
+pattern = '''(?:Cannot connect to the Docker daemon|error during connect:[^\n]*docker|open //\./pipe/docker_engine)'''
+title = "Docker isn't running"
+explain = '''
+The `docker` command works, but the Docker engine it talks to isn't running,
+or your user can't access it.
+'''
+fixes = [
+  "Start Docker Desktop and wait until it says it's running",
+  "On Linux: `sudo systemctl start docker`, and add yourself to the docker group: `sudo usermod -aG docker $USER` (then log out and back in)",
+]
+examples = ['''Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?''']
+
+[[rule]]
+id = "docker-port-allocated"
+language = "docker"
+priority = 60
+pattern = '''(?:Bind for [\d.:]*?:(?P<port>\d+) failed: port is already allocated|port is already allocated)'''
+title = "The host port is already in use"
+explain = '''
+Another container or program is already using the port you're trying to publish.
+'''
+fixes = [
+  "See which container has it: `docker ps`",
+  "Stop it (`docker stop <name>`) or publish on another host port, e.g. `-p 8081:80`",
+]
+examples = ['''Error response from daemon: driver failed programming external connectivity on endpoint web: Bind for 0.0.0.0:8080 failed: port is already allocated''']
+
+[[rule]]
+id = "os-no-space"
+language = "shell"
+pattern = '''(?:No space left on device|ENOSPC)'''
+title = "The disk is full (or out of file watchers)"
+explain = '''
+Either the disk is actually full, or on Linux, a dev server ran out of
+"inotify watchers" for watching files, which reports the same error.
+'''
+fixes = [
+  "Check free space: `df -h` (Docker can use a lot: `docker system prune`)",
+  "For watcher limits on Linux: `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`",
+]
+examples = ['''Error: ENOSPC: System limit for number of file watchers reached''', '''write error: No space left on device''']

@@ -1,0 +1,120 @@
+# C and C++ (gcc, clang, linker, runtime) rules.
+# gcc prints names in curly quotes when the locale is UTF-8, so patterns accept ‘’ and ''.
+
+[[rule]]
+id = "c-segfault"
+language = "c"
+priority = 55
+pattern = '''(?:Segmentation fault|SIGSEGV|segmentation violation)'''
+title = "The program read or wrote memory it doesn't own (segfault)"
+explain = '''
+Common causes: dereferencing a NULL or uninitialized pointer, going past the end
+of an array, using memory after `free`, or deep recursion overflowing the stack.
+'''
+fixes = [
+  "Compile with the address sanitizer to get the exact line: `gcc -g -fsanitize=address main.c && ./a.out`",
+  "Or run it in a debugger: `gdb ./a.out`, then `run`, then `bt` after the crash",
+  "Initialize pointers to NULL and check them before use",
+]
+examples = ['''Segmentation fault (core dumped)''']
+
+[[rule]]
+id = "c-undefined-reference"
+language = "c"
+priority = 60
+pattern = '''undefined reference to [`'‘](?P<sym>[^'’`]+)['’]'''
+title = "The linker can't find the code for `{sym}`"
+explain = '''
+The compiler saw `{sym}` declared, but no compiled file or library defines it.
+Usually a .c/.cpp file wasn't included in the build, a library flag is missing
+(e.g. `-lm` for math), or the function is declared but never written. For
+`main` itself, you're compiling a file without a `main` function.
+'''
+fixes = [
+  "Compile all source files together: `gcc main.c utils.c -o app`",
+  "Link the library: e.g. `-lm` for `sqrt`/`pow`, `-lpthread` for threads (put `-l` flags after the source files)",
+  "Check the function's name and signature match between the header and the .c file",
+  "Mixing C and C++? Wrap C headers in `extern \"C\"`",
+]
+examples = ['''main.c:(.text+0x1e): undefined reference to `sqrt'
+collect2: error: ld returned 1 exit status''']
+
+[[rule]]
+id = "c-implicit-declaration"
+language = "c"
+pattern = '''implicit declaration of function [‘'`](?P<func>\w+)[’']'''
+title = "`{func}` is used without being declared"
+explain = '''
+C needs a function's declaration before it's called. Usually you're missing an
+`#include` (e.g. `<stdlib.h>` for `malloc`, `<string.h>` for `strlen`), or your own
+function is defined below where it's used.
+'''
+fixes = [
+  "Add the right header; `man {func}` lists it",
+  "For your own function, add a prototype above `main` or move the function up",
+]
+examples = ['''main.c:5:5: warning: implicit declaration of function ‘strlen’ [-Wimplicit-function-declaration]''', '''main.c:5:5: error: implicit declaration of function 'foo' is invalid in C99''']
+
+[[rule]]
+id = "c-header-not-found"
+language = "c"
+pattern = '''fatal error: '?(?P<header>[\w./+-]+?)'?(?:: No such file or directory| file not found)'''
+title = "The compiler can't find `{header}`"
+explain = '''
+The header isn't in the include path. For your own headers, the path is wrong
+relative to the source file; for libraries, the development package isn't
+installed or its include folder isn't passed with `-I`.
+'''
+fixes = [
+  "For your own headers, use quotes and check the path: `#include \"utils.h\"`",
+  "Pass the folder: `gcc -I include main.c`",
+  "Install the library's dev package (e.g. `libssl-dev` on Debian/Ubuntu, `brew install openssl` on macOS)",
+]
+examples = ['''main.c:1:10: fatal error: myheader.h: No such file or directory''', '''main.cpp:2:10: fatal error: 'boost/asio.hpp' file not found''']
+
+[[rule]]
+id = "cpp-not-declared"
+language = "c"
+pattern = '''[‘'](?P<name>[\w:]+)[’'] was not declared in this scope'''
+title = "`{name}` isn't declared here"
+explain = '''
+The name isn't visible at this point. In C++ this is often a missing `std::`
+(`cout`, `string`, `vector`), a missing `#include`, or a variable from another scope.
+'''
+fixes = [
+  "Add the namespace: `std::{name}`",
+  "Add the header (e.g. `<iostream>`, `<string>`, `<vector>`)",
+  "Declare the variable before it's used, in this scope",
+]
+examples = ['''main.cpp:4:5: error: ‘cout’ was not declared in this scope''']
+
+[[rule]]
+id = "c-double-free"
+language = "c"
+priority = 60
+pattern = '''(?:double free detected|double free or corruption|free\(\): invalid pointer)'''
+title = "Memory was freed twice, or a bad pointer was freed"
+explain = '''
+`free` (or `delete`) was called on memory that was already freed or that
+didn't come from `malloc`/`new`.
+'''
+fixes = [
+  "Set pointers to NULL right after `free(p); p = NULL;`",
+  "Find the culprit with `-fsanitize=address -g`",
+  "In C++, prefer `std::unique_ptr` / `std::vector` over manual `new`/`delete`",
+]
+examples = ['''free(): double free detected in tcache 2''']
+
+[[rule]]
+id = "c-expected-semicolon"
+language = "c"
+pattern = '''expected [‘']?;[’']? (?:before|after|at end of)'''
+title = "A semicolon is missing"
+explain = '''
+Usually at the end of the line before the one reported, or after a `struct`/`class` definition's closing `}`.
+'''
+fixes = [
+  "Add `;` at the end of the previous statement",
+  "Struct and class definitions end with `};`",
+]
+examples = ['''main.c:6:5: error: expected ‘;’ before ‘return’''', '''main.cpp:8:2: error: expected ';' after class''']
